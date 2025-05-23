@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>System - Communication_LTD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h2>Add New Customer</h2>
+        <form method="post">
+            <label>Customer Name:</label><br>
+            <input type="text" name="name" placeholder="Enter customer name" required><br><br>
+            <label>Customer Email:</label><br>
+            <input type="text" name="email" placeholder="Enter customer email"><br><br>
+            <label>Customer Address:</label><br>
+            <input type="text" name="address" placeholder="Enter customer address"><br><br>
+            <label>Package Type:</label><br>
+            <input type="text" name="package_type" placeholder="Enter package type"><br><br>
+            <button type="submit">Add Customer</button>
+        </form>
+        <br>
+        {% if customer_name %}
+        <div class="success">Customer {{ customer_name }} added successfully!</div>
+        {% endif %}
+        <a href="{{ url_for('change_password') }}">Change Password</a> |
+        <a href="{{ url_for('login') }}">Logout</a>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+    </div>
+</body>
+
+</html>

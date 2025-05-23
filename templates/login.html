@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Communication_LTD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h2>Login to Communication_LTD Information System</h2>
+        <form method="post">
+            <label>Username:</label><br>
+            <input type="text" name="username" placeholder="Enter your username" required><br><br>
+            <label>Password:</label><br>
+            <input type="password" name="password" placeholder="Enter your password" required><br><br>
+            <button type="submit">Login</button>
+        </form>
+        <br>
+        <a href="{{ url_for('register') }}">Register</a>
+        <form action="{{ url_for('forgot_password') }}" method="get" style="display:inline;">
+            <button type="submit">Forgot Password?</button>
+        </form>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+    </div>
+</body>
+
+</html>
