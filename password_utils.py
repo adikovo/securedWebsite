@@ -41,8 +41,8 @@ class PasswordManager:
         self.db_config = {
             'host': 'localhost',
             'user': 'root',
-            'password': '',
-            'database': 'communication_ltd_secured'
+            'password': 'Roee221197!',
+            'database': 'communication_ltd'
         }
 
     def _get_db_connection(self):

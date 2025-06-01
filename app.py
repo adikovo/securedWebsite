@@ -5,6 +5,12 @@ from mysql.connector import Error
 from password_utils import PasswordManager
 import re
 import os
+import smtplib
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.urandom(32)  # Generate a secure random key
@@ -14,6 +20,17 @@ BACKEND_URL = 'http://localhost:3000'
 
 # Initialize password manager
 password_manager = PasswordManager()
+
+def send_email(recipient_email, subject, body):
+    msg = MIMEText(body, "html")
+    msg['Subject'] = subject
+    msg['From'] = os.getenv('MAIL_USERNAME')
+    msg['To'] = recipient_email
+
+    with smtplib.SMTP(os.getenv('MAIL_SERVER'), int(os.getenv('MAIL_PORT'))) as server:
+        server.starttls()
+        server.login(os.getenv('MAIL_USERNAME'), os.getenv('MAIL_PASSWORD'))
+        server.send_message(msg)
 
 def sanitize_input(input_str):
     # Remove any potentially dangerous characters
@@ -41,39 +58,76 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        
-        # Validate input
-        is_valid, result = validate_input(username, password, email)
+
+        # בדיקת קלט בסיסית
+        is_valid, result = validate_input(username, password)
         if not is_valid:
             flash(result)
             return render_template('register.html')
-        
-        username, password, email = result
-        
-        # Validate password against policy
-        is_valid, message = password_manager.policy.validate_password(password)
-        if not is_valid:
-            flash(message)
-            return render_template('register.html')
-        
-        # Hash password
+
+        # hash + salt
         password_hash, password_salt = password_manager.hash_password(password)
-        
+
         try:
+            # שליחת הנתונים ל-Node.js
             r = requests.post(f'{BACKEND_URL}/register', json={
                 'username': username,
                 'email': email,
                 'password': password_hash,
                 'password_salt': password_salt
             })
+
             if r.status_code == 200:
-                flash('User registered successfully! Please login.')
+                flash('Registration successful. Please log in.')
                 return redirect(url_for('login'))
             else:
-                flash(r.json().get('error', 'Registration failed.'))
+                error = r.json().get('error', 'Registration failed.')
+                flash(error)
         except Exception as e:
+            print('[REGISTER ERROR]', e)
             flash('Could not connect to backend.')
+
     return render_template('register.html')
+
+
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     if request.method == 'POST':
+#         username = request.form['username']
+#         password = request.form['password']
+        
+#         # Validate input
+#         is_valid, result = validate_input(username, password)
+#         if not is_valid:
+#             flash(result)
+#             return render_template('login.html')
+        
+#         username, password = result
+        
+#         try:
+#             # Check login attempts
+#             is_allowed, message = password_manager.check_login_attempts(username)
+#             if not is_allowed:
+#                 flash(message)
+#                 return render_template('login.html')
+            
+#             r = requests.post(f'{BACKEND_URL}/login', json={
+#                 'username': username,
+#                 'password': password
+#             })
+            
+#             if r.status_code == 200:
+#                 # Record successful login
+#                 password_manager.record_login_attempt(username, request.remote_addr)
+#                 session['username'] = username
+#                 return redirect(url_for('system'))
+#             else:
+#                 # Record failed attempt
+#                 password_manager.record_login_attempt(username, request.remote_addr)
+#                 flash('Invalid username or password')
+#         except Exception as e:
+#             flash('Could not connect to backend.')
+#     return render_template('login.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -86,56 +140,89 @@ def login():
         if not is_valid:
             flash(result)
             return render_template('login.html')
-        
+
         username, password = result
-        
+
         try:
-            # Check login attempts
-            is_allowed, message = password_manager.check_login_attempts(username)
-            if not is_allowed:
-                flash(message)
-                return render_template('login.html')
-            
-            r = requests.post(f'{BACKEND_URL}/login', json={
-                'username': username,
-                'password': password
-            })
-            
+            # קבלת פרטי המשתמש מה־Node (hash + salt)
+            r = requests.post(f'{BACKEND_URL}/login', json={'username': username})
+
             if r.status_code == 200:
-                # Record successful login
-                password_manager.record_login_attempt(username, request.remote_addr)
-                session['username'] = username
-                return redirect(url_for('system'))
+                user_data = r.json()
+                stored_hash = user_data['password']
+                stored_salt = user_data['password_salt']
+                user_id = user_data['id']
+
+                # אימות הסיסמה
+                if password_manager.verify_password(stored_hash, stored_salt, password):
+                    password_manager.record_login_attempt(user_id, request.remote_addr)
+                    session['username'] = username
+                    return redirect(url_for('system'))
+                else:
+                    password_manager.record_login_attempt(user_id, request.remote_addr)
+                    flash('Invalid username or password')
             else:
-                # Record failed attempt
-                password_manager.record_login_attempt(username, request.remote_addr)
                 flash('Invalid username or password')
+
         except Exception as e:
+            print(f"[ERROR] Login error: {e}")
             flash('Could not connect to backend.')
+
     return render_template('login.html')
 
+
+# @app.route('/forgot-password', methods=['GET', 'POST'])
+# def forgot_password():
+#     if request.method == 'POST':
+#         email = request.form['email']
+#         email = sanitize_input(email)
+        
+#         if not email:
+#             flash('Email is required')
+#             return render_template('forgot_password.html')
+        
+#         try:
+#             # Generate reset token
+#             token = password_manager.generate_reset_token(email)
+#             if token:
+#                 # Send email with reset token (implement email sending logic)
+#                 flash('Password reset instructions have been sent to your email.')
+#                 return redirect(url_for('login'))
+#             else:
+#                 flash('Could not generate reset token.')
+#         except Exception as e:
+#             flash('An error occurred. Please try again.')
+#     return render_template('forgot_password.html')
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form['email']
         email = sanitize_input(email)
-        
+
         if not email:
             flash('Email is required')
             return render_template('forgot_password.html')
-        
+
         try:
-            # Generate reset token
-            token = password_manager.generate_reset_token(email)
-            if token:
-                # Send email with reset token (implement email sending logic)
-                flash('Password reset instructions have been sent to your email.')
+            # קריאה ל-Node.js כדי ליצור טוקן איפוס סיסמה
+            r = requests.post(f'{BACKEND_URL}/generate-reset-token', json={'email': email})
+            if r.status_code == 200:
+                token = r.json().get('token')
+                reset_link = url_for('reset_password', token=token, _external=True)
+
+                # שלח את הקישור למייל – אבל לצורך בדיקה נציג אותו במסך
+            #    //flash(f'Password reset link (dev only): {reset_link}')
+                send_email(email, "Reset your password", f"Click here to reset your password: {reset_link}")
+                flash("Password reset link was sent to your email.")
                 return redirect(url_for('login'))
             else:
-                flash('Could not generate reset token.')
+                flash(r.json().get('error', 'Could not generate reset token.'))
         except Exception as e:
+            print("[ERROR in forgot-password]", e)
             flash('An error occurred. Please try again.')
+
     return render_template('forgot_password.html')
+
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -276,3 +363,5 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True) 
+
+

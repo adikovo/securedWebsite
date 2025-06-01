@@ -8,7 +8,7 @@ def migrate_users():
     db_config = {
         'host': 'localhost',
         'user': 'root',
-        'password': '',
+        'password': 'Roee221197!',
         'database': 'communication_ltd'
     }
 
