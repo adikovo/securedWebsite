@@ -48,3 +48,18 @@ This system is intentionally insecure and should not be used in production. It i
 - No encryption
 - Detailed error messages
 - Direct database queries without parameterization 
+
+## Mail Sending 
+To enable password reset emails in the system, create a .env file in the root of the project with the following content:
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=youremail@gmail.com
+MAIL_PASSWORD=your_app_password
+
+Instructions:
+Replace youremail@gmail.com with your Gmail address.
+Replace your_app_password with a [Google App Password](https://myaccount.google.com/apppasswords).
+Go to your Google App Passwords page : 
+Choose "Mail" as the app and "Other" as the device
+Type a name (e.g., Communication_LTD) and click Generate
+Copy the generated password and paste it into MAIL_PASSWORD
