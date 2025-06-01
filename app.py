@@ -9,6 +9,13 @@ import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
+# Color codes for console output
+class Colors:
+    RESET = '\033[0m'
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
 
 load_dotenv()
 
@@ -58,11 +65,17 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        # Check if passwords match
+        if password != confirm_password:
+            flash('Passwords do not match. Please try again.', 'error')
+            return render_template('register.html')
 
         # בדיקת קלט בסיסית
         is_valid, result = validate_input(username, password)
         if not is_valid:
-            flash(result)
+            flash(result, 'error')
             return render_template('register.html')
 
         # hash + salt
@@ -78,14 +91,18 @@ def register():
             })
 
             if r.status_code == 200:
-                flash('Registration successful. Please log in.')
+                # Save initial password to history after successful registration
+                password_manager.save_password_to_history(username, password_hash, password_salt)
+                print(f"{Colors.GREEN}[FLASK SUCCESS] User '{username}' registered and password saved to history{Colors.RESET}")
+                flash('Registration successful. Please log in.', 'success')
                 return redirect(url_for('login'))
             else:
                 error = r.json().get('error', 'Registration failed.')
-                flash(error)
+                print(f"{Colors.RED}[FLASK ERROR] Registration failed for user '{username}': {error}{Colors.RESET}")
+                flash(error, 'error')
         except Exception as e:
-            print('[REGISTER ERROR]', e)
-            flash('Could not connect to backend.')
+            print(f"{Colors.RED}[FLASK ERROR] Registration error: {e}{Colors.RESET}")
+            flash('Could not connect to backend.', 'error')
 
     return render_template('register.html')
 
@@ -98,7 +115,7 @@ def login():
         # Validate input
         is_valid, result = validate_input(username, password)
         if not is_valid:
-            flash(result)
+            flash(result, 'error')
             return render_template('login.html')
 
         username, password = result
@@ -117,16 +134,19 @@ def login():
                 if password_manager.verify_password(stored_hash, stored_salt, password):
                     password_manager.record_login_attempt(user_id, request.remote_addr)
                     session['username'] = username
+                    print(f"{Colors.GREEN}[FLASK SUCCESS] User '{username}' logged in successfully{Colors.RESET}")
                     return redirect(url_for('system'))
                 else:
                     password_manager.record_login_attempt(user_id, request.remote_addr)
-                    flash('Invalid username or password')
+                    print(f"{Colors.YELLOW}[FLASK WARNING] Invalid password attempt for user '{username}'{Colors.RESET}")
+                    flash('Invalid username or password', 'error')
             else:
-                flash('Invalid username or password')
+                print(f"{Colors.YELLOW}[FLASK WARNING] Login attempt for non-existent user '{username}'{Colors.RESET}")
+                flash('Invalid username or password', 'error')
 
         except Exception as e:
-            print(f"[ERROR] Login error: {e}")
-            flash('Could not connect to backend.')
+            print(f"{Colors.RED}[FLASK ERROR] Login error: {e}{Colors.RESET}")
+            flash('Could not connect to backend.', 'error')
 
     return render_template('login.html')
 
@@ -137,7 +157,7 @@ def forgot_password():
         email = sanitize_input(email)
 
         if not email:
-            flash('Email is required')
+            flash('Email is required', 'error')
             return render_template('forgot_password.html')
 
         try:
@@ -150,16 +170,18 @@ def forgot_password():
                 # שלח את הקישור למייל – אבל לצורך בדיקה נציג אותו במסך
             #    //flash(f'Password reset link (dev only): {reset_link}')
                 send_email(email, "Reset your password", f"Click here to reset your password: {reset_link}")
-                flash("Password reset link was sent to your email.")
+                print(f"{Colors.GREEN}[FLASK SUCCESS] Password reset email sent to '{email}'{Colors.RESET}")
+                flash("Password reset link was sent to your email.", 'success')
                 return redirect(url_for('login'))
             else:
-                flash(r.json().get('error', 'Could not generate reset token.'))
+                error_msg = r.json().get('error', 'Could not generate reset token.')
+                print(f"{Colors.RED}[FLASK ERROR] Failed to generate reset token for '{email}': {error_msg}{Colors.RESET}")
+                flash(error_msg, 'error')
         except Exception as e:
-            print("[ERROR in forgot-password]", e)
-            flash('An error occurred. Please try again.')
+            print(f"{Colors.RED}[FLASK ERROR] Forgot password error: {e}{Colors.RESET}")
+            flash('An error occurred. Please try again.', 'error')
 
     return render_template('forgot_password.html')
-
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -170,44 +192,59 @@ def reset_password(token):
         # Validate password against policy
         is_valid, message = password_manager.policy.validate_password(new_password)
         if not is_valid:
-            flash(message)
+            flash(message, 'error')
             return render_template('reset_password.html')
         
         # Verify token and get user_id
         user_id = password_manager.verify_reset_token(token)
         if not user_id:
-            flash('Invalid or expired reset token.')
+            print(f"{Colors.YELLOW}[FLASK WARNING] Invalid or expired reset token used{Colors.RESET}")
+            flash('Invalid or expired reset token.', 'error')
             return redirect(url_for('login'))
         
         # Check password history
         is_allowed, message = password_manager.check_password_history(user_id, new_password)
         if not is_allowed:
-            flash(message)
+            print(f"{Colors.YELLOW}[FLASK WARNING] Password history violation for user ID '{user_id}'{Colors.RESET}")
+            flash(message, 'warning')
             return render_template('reset_password.html')
         
-        # Hash new password
-        password_hash, password_salt = password_manager.hash_password(new_password)
-        
         try:
+            # Get current password details to save to history
+            r = requests.post(f'{BACKEND_URL}/get-user-password', json={'user_id': user_id})
+            if r.status_code == 200:
+                user_data = r.json()
+                current_hash = user_data['password']
+                current_salt = user_data['password_salt']
+                
+                # Save current password to history before resetting
+                password_manager.save_password_to_history(user_id, current_hash, current_salt)
+            
+            # Hash new password
+            password_hash, password_salt = password_manager.hash_password(new_password)
+            
             r = requests.post(f'{BACKEND_URL}/reset-password', json={
                 'user_id': user_id,
                 'password': password_hash,
                 'password_salt': password_salt
             })
             if r.status_code == 200:
-                flash('Password has been reset successfully.')
+                print(f"{Colors.GREEN}[FLASK SUCCESS] Password reset successfully for user ID '{user_id}'{Colors.RESET}")
+                flash('Password has been reset successfully.', 'success')
                 return redirect(url_for('login'))
             else:
-                flash('Failed to reset password.')
+                print(f"{Colors.RED}[FLASK ERROR] Failed to reset password for user ID '{user_id}'{Colors.RESET}")
+                flash('Failed to reset password.', 'error')
         except Exception as e:
-            flash('Could not connect to backend.')
+            print(f"{Colors.RED}[FLASK ERROR] Reset password error: {e}{Colors.RESET}")
+            flash('Could not connect to backend.', 'error')
     return render_template('reset_password.html')
 
 @app.route('/change-password', methods=['GET', 'POST'])
 def change_password():
     username = session.get('username')
     if not username:
-        flash('You must be logged in to change your password.')
+        flash('You must be logged in to change your password.', 'warning')
         return redirect(url_for('login'))
     
     if request.method == 'POST':
@@ -217,7 +254,7 @@ def change_password():
         # Validate input
         is_valid, result = validate_input(username, current_password)
         if not is_valid:
-            flash(result)
+            flash(result, 'error')
             return render_template('change_password.html')
         
         current_password, new_password = result[1], sanitize_input(new_password)
@@ -225,22 +262,30 @@ def change_password():
         # Validate new password against policy
         is_valid, message = password_manager.policy.validate_password(new_password)
         if not is_valid:
-            flash(message)
+            flash(message, 'error')
             return render_template('change_password.html')
         
         try:
-            # Verify current password
+            # Verify current password and get current password details
             r = requests.post(f'{BACKEND_URL}/verify-password', json={
                 'username': username,
                 'password': current_password
             })
             
             if r.status_code == 200:
+                user_data = r.json()
+                current_hash = user_data['password']
+                current_salt = user_data['password_salt']
+                
                 # Check password history
                 is_allowed, message = password_manager.check_password_history(username, new_password)
                 if not is_allowed:
-                    flash(message)
+                    print(f"{Colors.YELLOW}[FLASK WARNING] Password history violation for user '{username}'{Colors.RESET}")
+                    flash(message, 'warning')
                     return render_template('change_password.html')
+                
+                # Save current password to history before changing
+                password_manager.save_password_to_history(username, current_hash, current_salt)
                 
                 # Hash new password
                 password_hash, password_salt = password_manager.hash_password(new_password)
@@ -253,14 +298,18 @@ def change_password():
                 })
                 
                 if r.status_code == 200:
-                    flash('Password changed successfully!')
+                    print(f"{Colors.GREEN}[FLASK SUCCESS] Password changed successfully for user '{username}'{Colors.RESET}")
+                    flash('Password changed successfully!', 'success')
                     return redirect(url_for('system'))
                 else:
-                    flash('Failed to change password.')
+                    print(f"{Colors.RED}[FLASK ERROR] Failed to change password for user '{username}'{Colors.RESET}")
+                    flash('Failed to change password.', 'error')
             else:
-                flash('Current password is incorrect.')
+                print(f"{Colors.YELLOW}[FLASK WARNING] Incorrect current password for user '{username}'{Colors.RESET}")
+                flash('Current password is incorrect.', 'error')
         except Exception as e:
-            flash('Could not connect to backend.')
+            print(f"{Colors.RED}[FLASK ERROR] Change password error: {e}{Colors.RESET}")
+            flash('Could not connect to backend.', 'error')
     return render_template('change_password.html')
 
 @app.route('/system', methods=['GET', 'POST'])
@@ -275,7 +324,7 @@ def system():
         package_type = sanitize_input(request.form['package_type'])
         
         if not all([name, email, address, package_type]):
-            flash('All fields are required')
+            flash('All fields are required', 'error')
             return render_template('system.html')
         
         try:
@@ -287,10 +336,14 @@ def system():
             })
             if r.status_code == 200:
                 customer_name = name
+                print(f"{Colors.GREEN}[FLASK SUCCESS] Customer '{name}' added successfully{Colors.RESET}")
             else:
-                flash(r.json().get('error', 'Failed to add customer.'))
+                error_msg = r.json().get('error', 'Failed to add customer.')
+                print(f"{Colors.RED}[FLASK ERROR] Failed to add customer '{name}': {error_msg}{Colors.RESET}")
+                flash(error_msg, 'error')
         except Exception as e:
-            flash('Could not connect to backend.')
+            print(f"{Colors.RED}[FLASK ERROR] Add customer error: {e}{Colors.RESET}")
+            flash('Could not connect to backend.', 'error')
     return render_template('system.html', customer_name=customer_name)
 
 @app.route('/logout')
@@ -299,6 +352,6 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, port=5001) 
 
 
