@@ -39,11 +39,11 @@ class PasswordManager:
     def __init__(self):
         self.policy = PasswordPolicy()
         self.db_config = {
-            'host': 'localhost',
-            'user': 'root',
-            'password': 'Roee221197!',
-            'database': 'communication_ltd'
-        }
+            'host': os.getenv('DB_HOST'),
+            'user': os.getenv('DB_USER'),
+            'password': os.getenv('DB_PASSWORD'),
+            'database': os.getenv('DB_NAME')
+}
 
     def _get_db_connection(self):
         try:
