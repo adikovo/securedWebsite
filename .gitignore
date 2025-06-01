@@ -10,7 +10,6 @@ ENV/
 
 # Environment variables
 .env
-.env.*
 
 # macOS system files
 .DS_Store
