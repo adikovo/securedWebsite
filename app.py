@@ -89,46 +89,6 @@ def register():
 
     return render_template('register.html')
 
-
-# @app.route('/login', methods=['GET', 'POST'])
-# def login():
-#     if request.method == 'POST':
-#         username = request.form['username']
-#         password = request.form['password']
-        
-#         # Validate input
-#         is_valid, result = validate_input(username, password)
-#         if not is_valid:
-#             flash(result)
-#             return render_template('login.html')
-        
-#         username, password = result
-        
-#         try:
-#             # Check login attempts
-#             is_allowed, message = password_manager.check_login_attempts(username)
-#             if not is_allowed:
-#                 flash(message)
-#                 return render_template('login.html')
-            
-#             r = requests.post(f'{BACKEND_URL}/login', json={
-#                 'username': username,
-#                 'password': password
-#             })
-            
-#             if r.status_code == 200:
-#                 # Record successful login
-#                 password_manager.record_login_attempt(username, request.remote_addr)
-#                 session['username'] = username
-#                 return redirect(url_for('system'))
-#             else:
-#                 # Record failed attempt
-#                 password_manager.record_login_attempt(username, request.remote_addr)
-#                 flash('Invalid username or password')
-#         except Exception as e:
-#             flash('Could not connect to backend.')
-#     return render_template('login.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -170,29 +130,6 @@ def login():
 
     return render_template('login.html')
 
-
-# @app.route('/forgot-password', methods=['GET', 'POST'])
-# def forgot_password():
-#     if request.method == 'POST':
-#         email = request.form['email']
-#         email = sanitize_input(email)
-        
-#         if not email:
-#             flash('Email is required')
-#             return render_template('forgot_password.html')
-        
-#         try:
-#             # Generate reset token
-#             token = password_manager.generate_reset_token(email)
-#             if token:
-#                 # Send email with reset token (implement email sending logic)
-#                 flash('Password reset instructions have been sent to your email.')
-#                 return redirect(url_for('login'))
-#             else:
-#                 flash('Could not generate reset token.')
-#         except Exception as e:
-#             flash('An error occurred. Please try again.')
-#     return render_template('forgot_password.html')
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':

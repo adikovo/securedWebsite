@@ -2,16 +2,19 @@ import mysql.connector
 from mysql.connector import Error
 from password_utils import PasswordManager
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def migrate_users():
-    # Database configuration
+    # Database configuration from .env
     db_config = {
-        'host': 'localhost',
-        'user': 'root',
-        'password': 'Roee221197!',
-        'database': 'communication_ltd'
+        'host': os.getenv('DB_HOST'),
+        'user': os.getenv('DB_USER'),
+        'password': os.getenv('DB_PASSWORD'),
+        'database': os.getenv('DB_NAME')
     }
-
     # Initialize password manager
     password_manager = PasswordManager()
 
