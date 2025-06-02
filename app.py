@@ -319,6 +319,7 @@ def system():
     if 'username' not in session:
         return redirect(url_for('login'))
     customer_name = None
+    customers = []
     if request.method == 'POST':
         name = sanitize_input(request.form['name'])
         email = sanitize_input(request.form['email'])
@@ -346,7 +347,31 @@ def system():
         except Exception as e:
             print(f"{Colors.RED}[FLASK ERROR] Add customer error: {e}{Colors.RESET}")
             flash('Could not connect to backend.', 'error')
-    return render_template('system.html', customer_name=customer_name)
+
+    elif request.method == 'GET':
+        action = request.args.get('action')
+        if action == 'search':
+            query = sanitize_input(request.args.get('query', ''))
+            try:
+                r = requests.get(f'{BACKEND_URL}/search-customer', params={'name': query})
+                if r.status_code == 200:
+                    customers = r.json().get('customers', [])
+                else:
+                    flash("No customer found.")
+            except Exception as e:
+                flash("Error fetching search results.")
+
+        elif action == 'list':
+            try:
+                r = requests.get(f'{BACKEND_URL}/list-customers')
+                if r.status_code == 200:
+                    customers = r.json().get('customers', [])
+                else:
+                    flash("Could not fetch customer list.")
+            except Exception as e:
+                flash("Error connecting to backend.")
+
+    return render_template('system.html', customer_name=customer_name, customers=customers)
 
 @app.route('/logout')
 def logout():

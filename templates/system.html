@@ -21,6 +21,47 @@
             <input type="text" name="package_type" placeholder="Enter package type"><br><br>
             <button type="submit">Add Customer</button>
         </form>
+     
+        <hr>
+
+        <form method="get" action="{{ url_for('system') }}">
+            <input type="hidden" name="action" value="search">
+            <input type="text" name="query" placeholder="Search customer by name" required>
+            <button type="submit">Search</button>
+        </form>
+
+        <form method="get" action="{{ url_for('system') }}">
+            <input type="hidden" name="action" value="list">
+            <button type="submit">Show All Customers</button>
+        </form>
+
+        {% if customers %}
+            <div id="customer-results">
+                <h3>Customer Results:</h3>  
+                <button onclick="toggleResults()">Close table</button>
+                <table border="1">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Package Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.email }}</td>
+                        <td>{{ c.address }}</td>
+                        <td>{{ c.package_type }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        {% endif %}
+
         <br>
         {% if customer_name %}
         <div class="success">Customer {{ customer_name }} added successfully!</div>
@@ -41,5 +82,21 @@
         </div>
     </div>
 </body>
+<script>
+    function toggleResults() {
+        const div = document.getElementById("customer-results");
+        if (div.style.display === "none") {
+            div.style.display = "block";
+        } else {
+            div.style.display = "none";
+        }
+    }
 
+    window.onload = function () {
+        const resultSection = document.getElementById("customer-results");
+        if (resultSection) {
+            resultSection.scrollIntoView({ behavior: "smooth" });
+        }
+    };
+</script>
 </html>

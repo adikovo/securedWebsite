@@ -279,3 +279,19 @@ app.post('/add-password-history', (req, res) => {
         res.json({ message: 'Password history saved' });
     });
 });
+
+app.get('/search-customer', (req, res) => {
+    const { name } = req.query;
+    const query = 'SELECT * FROM customers WHERE name = ?'; // name LIKE = ? will brigg all the names that belong to the input
+    db.query(query, [name], (err, results) => {  //[`%${name}%`]
+        if (err) return res.status(500).json({ error: 'DB error' });
+        res.json({ customers: results });
+    });
+});
+
+app.get('/list-customers', (req, res) => {
+    db.query('SELECT * FROM customers', (err, results) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        res.json({ customers: results });
+    });
+});
