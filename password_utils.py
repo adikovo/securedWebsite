@@ -72,12 +72,40 @@ class PasswordManager:
         )
         return hmac.compare_digest(key.hex(), stored_password)
 
-    def check_password_history(self, user_id, new_password):
+    def get_user_id_by_username(self, username):
+        """Get user ID by username"""
+        conn = self._get_db_connection()
+        if not conn:
+            return None
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            result = cursor.fetchone()
+            return result[0] if result else None
+        except Error as e:
+            print(f"Error getting user ID: {e}")
+            return None
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
+    def check_password_history(self, user_identifier, new_password):
+        """Check if password was used in the last 3 passwords"""
         conn = self._get_db_connection()
         if not conn:
             return False, "Database connection error"
 
         try:
+            # If user_identifier is a string (username), get the user_id
+            if isinstance(user_identifier, str):
+                user_id = self.get_user_id_by_username(user_identifier)
+                if not user_id:
+                    return False, "User not found"
+            else:
+                user_id = user_identifier
+
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT password_hash, password_salt 
@@ -89,11 +117,59 @@ class PasswordManager:
             
             for stored_hash, stored_salt in cursor.fetchall():
                 if self.verify_password(stored_hash, stored_salt, new_password):
-                    return False, "Password has been used recently"
+                    return False, f"Password has been used recently. Please choose a different password (last {self.policy.policy['password_history_size']} passwords cannot be reused)."
             
             return True, "Password is not in history"
         except Error as e:
+            print(f"Database error in check_password_history: {e}")
             return False, f"Database error: {e}"
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
+    def save_password_to_history(self, user_identifier, password_hash, password_salt):
+        """Save current password to history before changing it"""
+        conn = self._get_db_connection()
+        if not conn:
+            return False
+
+        try:
+            # If user_identifier is a string (username), get the user_id
+            if isinstance(user_identifier, str):
+                user_id = self.get_user_id_by_username(user_identifier)
+                if not user_id:
+                    return False
+            else:
+                user_id = user_identifier
+
+            cursor = conn.cursor()
+            
+            # Insert current password into history
+            cursor.execute("""
+                INSERT INTO password_history (user_id, password_hash, password_salt)
+                VALUES (%s, %s, %s)
+            """, (user_id, password_hash, password_salt))
+            
+            # Keep only the last N passwords in history
+            cursor.execute("""
+                DELETE FROM password_history 
+                WHERE user_id = %s 
+                AND id NOT IN (
+                    SELECT id FROM (
+                        SELECT id FROM password_history 
+                        WHERE user_id = %s 
+                        ORDER BY created_at DESC 
+                        LIMIT %s
+                    ) AS recent_passwords
+                )
+            """, (user_id, user_id, self.policy.policy['password_history_size']))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error saving password to history: {e}")
+            return False
         finally:
             if conn.is_connected():
                 cursor.close()
