@@ -1,0 +1,6 @@
+id,name,email,address,package_type
+4,&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;,&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;,tlv,orenge
+5,customer1,"&quot;&lt;img src=x onerror=alert(&#x27;email&#x27;)&gt;&quot;",holon,yes
+6,customer2,mail@mail.com,holon,&lt;b&gt;tlv&lt;/b&gt;
+7,--,--,--,--
+8,customer3,1=1,1=1,1=1

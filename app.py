@@ -8,6 +8,7 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
+import html
 
 
 load_dotenv()
@@ -34,7 +35,8 @@ def send_email(recipient_email, subject, body):
 
 def sanitize_input(input_str):
     # Remove any potentially dangerous characters
-    return re.sub(r'[<>"\']', '', input_str)
+   #return re.sub(r'[<>"\']', '', input_str)
+       return html.escape(input_str)
 
 def validate_input(username, password, email=None):
     if not username or not password or (email and not email):
@@ -55,8 +57,8 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
+        username = sanitize_input(request.form['username'])
+        email = sanitize_input(request.form['email'])
         password = request.form['password']
 
         # בדיקת קלט בסיסית
@@ -92,7 +94,7 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
+        username = sanitize_input(request.form['username'])
         password = request.form['password']
         
         # Validate input

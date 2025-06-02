@@ -214,3 +214,26 @@ app.post('/reset-password', (req, res) => {
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 }); 
+
+
+app.post('/add-password-history', (req, res) => {
+    const { user_id, password_hash, password_salt } = req.body;
+
+    if (!user_id || !password_hash || !password_salt) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const query = `
+        INSERT INTO password_history (user_id, password_hash, password_salt)
+        VALUES (?, ?, ?)
+    `;
+
+    db.query(query, [user_id, password_hash, password_salt], (err, results) => {
+        if (err) {
+            console.error('[HISTORY ERROR]', err);
+            return res.status(500).json({ error: 'Failed to save password history' });
+        }
+
+        res.json({ message: 'Password history saved' });
+    });
+});
