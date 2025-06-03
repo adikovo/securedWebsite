@@ -42,8 +42,7 @@ def send_email(recipient_email, subject, body):
 
 def sanitize_input(input_str):
     # Remove any potentially dangerous characters
-   #return re.sub(r'[<>"\']', '', input_str)
-       return html.escape(input_str)
+    return html.escape(input_str)
 
 def validate_input(username, password, email=None):
     if not username or not password or (email and not email):
@@ -74,7 +73,7 @@ def register():
             flash('Passwords do not match. Please try again.', 'error')
             return render_template('register.html')
 
-        # בדיקת קלט בסיסית
+        # Basic input validation
         is_valid, result = validate_input(username, password)
         if not is_valid:
             flash(result, 'error')
@@ -84,7 +83,7 @@ def register():
         password_hash, password_salt = password_manager.hash_password(password)
 
         try:
-            # שליחת הנתונים ל-Node.js
+            # Send data to Node.js
             r = requests.post(f'{BACKEND_URL}/register', json={
                 'username': username,
                 'email': email,
@@ -123,7 +122,7 @@ def login():
         username, password = result
 
         try:
-            # קבלת פרטי המשתמש מה־Node (hash + salt)
+            # Get user details from Node.js (hash + salt)
             r = requests.post(f'{BACKEND_URL}/login', json={'username': username})
 
             if r.status_code == 200:
@@ -132,7 +131,7 @@ def login():
                 stored_salt = user_data['password_salt']
                 user_id = user_data['id']
 
-                # אימות הסיסמה
+                # Verify password
                 if password_manager.verify_password(stored_hash, stored_salt, password):
                     password_manager.record_login_attempt(user_id, request.remote_addr)
                     session['username'] = username
@@ -163,14 +162,13 @@ def forgot_password():
             return render_template('forgot_password.html')
 
         try:
-            # קריאה ל-Node.js כדי ליצור טוקן איפוס סיסמה
+            # Call Node.js to generate password reset token
             r = requests.post(f'{BACKEND_URL}/generate-reset-token', json={'email': email})
             if r.status_code == 200:
                 token = r.json().get('token')
                 reset_link = url_for('reset_password', token=token, _external=True)
 
-                # שלח את הקישור למייל – אבל לצורך בדיקה נציג אותו במסך
-            #    //flash(f'Password reset link (dev only): {reset_link}')
+                # Send the link via email 
                 send_email(email, "Reset your password", f"Click here to reset your password: {reset_link}")
                 print(f"{Colors.GREEN}[FLASK SUCCESS] Password reset email sent to '{email}'{Colors.RESET}")
                 flash("Password reset link was sent to your email.", 'success')
@@ -189,7 +187,14 @@ def forgot_password():
 def reset_password(token):
     if request.method == 'POST':
         new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
         new_password = sanitize_input(new_password)
+        confirm_password = sanitize_input(confirm_password)
+        
+        # Check if passwords match
+        if new_password != confirm_password:
+            flash('Passwords do not match. Please try again.', 'error')
+            return render_template('reset_password.html')
         
         # Validate password against policy
         is_valid, message = password_manager.policy.validate_password(new_password)
