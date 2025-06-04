@@ -85,6 +85,11 @@ def register():
             flash(result, 'error')
             return render_template('register.html')
 
+        is_valid, message = password_manager.policy.validate_password(password)
+        if not is_valid:
+            flash(message, 'error')
+            return render_template('register.html')
+
         # Generate secure password hash with salt using PBKDF2
         password_hash, password_salt = password_manager.hash_password(password)
 
