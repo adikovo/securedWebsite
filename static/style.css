@@ -139,8 +139,31 @@ table {
     table-layout: fixed;
 }
 
-th, td {
+th,
+td {
     padding: 10px;
     border: 1px solid #aaa;
     text-align: left;
+}
+
+/* No Results Message */
+.no-results {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.no-results h3 {
+    color: #6c757d;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.no-results p {
+    color: #6c757d;
+    margin: 0;
+    font-size: 14px;
 }

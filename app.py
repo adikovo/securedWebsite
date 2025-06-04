@@ -337,6 +337,8 @@ def system():
     
     customer_name = None
     customers = []
+    search_performed = False
+    search_query = ""
     
     if request.method == 'POST':
         # Add new customer
@@ -372,9 +374,10 @@ def system():
         action = request.args.get('action')
         if action == 'search':
             # Search for customers by name
-            query = sanitize_input(request.args.get('query', ''))
+            search_performed = True
+            search_query = sanitize_input(request.args.get('query', ''))
             try:
-                r = requests.get(f'{BACKEND_URL}/search-customer', params={'name': query})
+                r = requests.get(f'{BACKEND_URL}/search-customer', params={'name': search_query})
                 if r.status_code == 200:
                     customers = r.json().get('customers', [])
                 else:
@@ -389,11 +392,12 @@ def system():
                 if r.status_code == 200:
                     customers = r.json().get('customers', [])
                 else:
-                    flash("Could not fetch customer list.")
+                    flash("Could not fetch customer list.", 'error')
             except Exception as e:
-                flash("Error connecting to backend.")
+                flash("Error connecting to backend.", 'error')
 
-    return render_template('system.html', customer_name=customer_name, customers=customers)
+    return render_template('system.html', customer_name=customer_name, customers=customers, 
+                         search_performed=search_performed, search_query=search_query)
 
 #user logout route
 @app.route('/logout')

@@ -21,7 +21,7 @@
             <input type="text" name="package_type" placeholder="Enter package type"><br><br>
             <button type="submit">Add Customer</button>
         </form>
-     
+
         <hr>
 
         <form method="get" action="{{ url_for('system') }}">
@@ -35,11 +35,18 @@
             <button type="submit">Show All Customers</button>
         </form>
 
+        {% if search_performed and not customers %}
+        <div class="no-results">
+            <h3>No Results Found</h3>
+            <p>No customers found matching "{{ search_query }}". Please try a different search term.</p>
+        </div>
+        {% endif %}
+
         {% if customers %}
-            <div id="customer-results">
-                <h3>Customer Results:</h3>  
-                <button onclick="toggleResults()">Close table</button>
-                <table border="1">
+        <div id="customer-results">
+            <h3>Customer Results:</h3>
+            <button onclick="toggleResults()">Close table</button>
+            <table border="1">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -59,7 +66,7 @@
                     {% endfor %}
                 </tbody>
             </table>
-            </div>
+        </div>
         {% endif %}
 
         <br>
@@ -99,4 +106,5 @@
         }
     };
 </script>
+
 </html>

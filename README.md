@@ -85,9 +85,9 @@ FLASK_SECRET_KEY=your-secret-key-here  # Generate with: python -c "import secret
 ### 4. Backend (Node.js) Setup
 
 #### Install Dependencies
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
 #### Required Node.js Packages
 The system uses these key packages:
@@ -98,9 +98,9 @@ The system uses these key packages:
 - `crypto` - Cryptographic functions
 
 #### Start Backend Server
-```bash
-npm start
-```
+   ```bash
+   npm start
+   ```
 **Backend runs on**: `http://localhost:3000`
 
 ### 5. Frontend (Flask) Setup
