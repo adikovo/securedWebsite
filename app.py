@@ -30,23 +30,16 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.urandom(32)  # Generate a secure random key
 
-# Node.js backend URL
 BACKEND_URL = 'http://localhost:3000'
 
-# Initialize password manager
 password_manager = PasswordManager()
 
 def send_email(recipient_email, subject, body):
-    """
-    Send email using SMTP configuration from environment variables
-    Used for password reset functionality
-    
-    """
     msg = MIMEText(body, "html")
     msg['Subject'] = subject
     msg['From'] = os.getenv('MAIL_USERNAME')
     msg['To'] = recipient_email
-
+    
     # Connect to SMTP server and send email
     with smtplib.SMTP(os.getenv('MAIL_SERVER'), int(os.getenv('MAIL_PORT'))) as server:
         server.starttls()
@@ -54,14 +47,13 @@ def send_email(recipient_email, subject, body):
         server.send_message(msg)
 
 def sanitize_input(input_str):
-    # Remove any potentially dangerous characters
+    #Remove any potentially dangerous characters
     return html.escape(input_str)
 
 def validate_input(username, password, email=None):
     if not username or not password or (email and not email):
         return False, "All fields are required"
     
-    # Sanitize inputs to prevent XSS
     username = sanitize_input(username)
     password = sanitize_input(password)
     if email:
@@ -78,18 +70,16 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        # Get form data and sanitize inputs
+
         username = sanitize_input(request.form['username'])
         email = sanitize_input(request.form['email'])
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
-        # Check if passwords match
         if password != confirm_password:
             flash('Passwords do not match. Please try again.', 'error')
             return render_template('register.html')
 
-        # Basic input validation
         is_valid, result = validate_input(username, password)
         if not is_valid:
             flash(result, 'error')
@@ -99,7 +89,6 @@ def register():
         password_hash, password_salt = password_manager.hash_password(password)
 
         try:
-            # Send data to Node.js backend for database storage
             r = requests.post(f'{BACKEND_URL}/register', json={
                 'username': username,
                 'email': email,
@@ -108,7 +97,6 @@ def register():
             })
 
             if r.status_code == 200:
-                # Save initial password to history after successful registration
                 password_manager.save_password_to_history(username, password_hash, password_salt)
                 print(f"{Colors.GREEN}[FLASK SUCCESS] User '{username}' registered and password saved to history{Colors.RESET}")
                 flash('Registration successful. Please log in.', 'success')
@@ -130,7 +118,6 @@ def login():
         username = sanitize_input(request.form['username'])
         password = request.form['password']
         
-        # Validate input data
         is_valid, result = validate_input(username, password)
         if not is_valid:
             flash(result, 'error')
@@ -139,32 +126,30 @@ def login():
         username, password = result
 
         try:
-            # Get user details from Node.js backend (hash + salt for verification)
             r = requests.post(f'{BACKEND_URL}/login', json={'username': username})
 
             if r.status_code == 200:
-                # User exists, check rate limiting BEFORE password verification
+                #check rate limiting BEFORE password verification
                 user_data = r.json()
                 stored_hash = user_data['password']
                 stored_salt = user_data['password_salt']
                 user_id = user_data['id']
 
-                # Check if user has exceeded login attempts
+                #Check if user has exceeded login attempts
                 is_allowed, rate_limit_message = password_manager.check_login_attempts(user_id)
                 if not is_allowed:
                     print(f"{Colors.YELLOW}[FLASK WARNING] Rate limited login attempt for user '{username}'{Colors.RESET}")
                     flash(rate_limit_message, 'error')
                     return render_template('login.html')
 
-                # Verify password
                 if password_manager.verify_password(stored_hash, stored_salt, password):
-                    # Successful login - record attempt and create session
+                    
                     password_manager.record_login_attempt(user_id, request.remote_addr)
                     session['username'] = username
                     print(f"{Colors.GREEN}[FLASK SUCCESS] User '{username}' logged in successfully{Colors.RESET}")
                     return redirect(url_for('system'))
                 else:
-                    # Failed login - record attempt for security monitoring
+                    
                     password_manager.record_login_attempt(user_id, request.remote_addr)
                     print(f"{Colors.YELLOW}[FLASK WARNING] Invalid password attempt for user '{username}'{Colors.RESET}")
                     flash('Invalid username or password', 'error')
@@ -186,7 +171,6 @@ def forgot_password():
         email = request.form['email']
         email = sanitize_input(email)
 
-        # Validate email input
         if not email:
             flash('Email is required', 'error')
             return render_template('forgot_password.html')
@@ -195,17 +179,17 @@ def forgot_password():
             # Call Node.js to generate password reset token
             r = requests.post(f'{BACKEND_URL}/generate-reset-token', json={'email': email})
             if r.status_code == 200:
-                # Token generated successfully
+                
                 token = r.json().get('token')
                 reset_link = url_for('reset_password', token=token, _external=True)
 
-                # Send the reset link via email
+                #Send the reset link via email
                 send_email(email, "Reset your password", f"Click here to reset your password: {reset_link}")
                 print(f"{Colors.GREEN}[FLASK SUCCESS] Password reset email sent to '{email}'{Colors.RESET}")
                 flash("Password reset link was sent to your email.", 'success')
                 return redirect(url_for('login'))
             else:
-                # Failed to generate token (email not found, etc.)
+                #Failed to generate token 
                 error_msg = r.json().get('error', 'Could not generate reset token.')
                 print(f"{Colors.RED}[FLASK ERROR] Failed to generate reset token for '{email}': {error_msg}{Colors.RESET}")
                 flash(error_msg, 'error')
@@ -224,18 +208,15 @@ def reset_password(token):
         new_password = sanitize_input(new_password)
         confirm_password = sanitize_input(confirm_password)
         
-        # Check if passwords match
         if new_password != confirm_password:
             flash('Passwords do not match. Please try again.', 'error')
             return render_template('reset_password.html')
         
-        # Validate password against policy
         is_valid, message = password_manager.policy.validate_password(new_password)
         if not is_valid:
             flash(message, 'error')
             return render_template('reset_password.html')
         
-        # Verify token and get user_id
         user_id = password_manager.verify_reset_token(token)
         if not user_id:
             print(f"{Colors.YELLOW}[FLASK WARNING] Invalid or expired reset token used{Colors.RESET}")
@@ -250,20 +231,17 @@ def reset_password(token):
             return render_template('reset_password.html')
         
         try:
-            # Get current password details to save to history
             r = requests.post(f'{BACKEND_URL}/get-user-password', json={'user_id': user_id})
             if r.status_code == 200:
                 user_data = r.json()
                 current_hash = user_data['password']
                 current_salt = user_data['password_salt']
                 
-                # Save current password to history before resetting
                 password_manager.save_password_to_history(user_id, current_hash, current_salt)
             
             # Hash new password with secure salt
             password_hash, password_salt = password_manager.hash_password(new_password)
             
-            # Update password in database via backend
             r = requests.post(f'{BACKEND_URL}/reset-password', json={
                 'user_id': user_id,
                 'password': password_hash,
@@ -293,7 +271,6 @@ def change_password():
         current_password = request.form['current_password']
         new_password = request.form['new_password']
         
-        # Validate input
         is_valid, result = validate_input(username, current_password)
         if not is_valid:
             flash(result, 'error')
@@ -308,14 +285,12 @@ def change_password():
             return render_template('change_password.html')
         
         try:
-            # Verify current password and get current password details
             r = requests.post(f'{BACKEND_URL}/verify-password', json={
                 'username': username,
                 'password': current_password
             })
             
             if r.status_code == 200:
-                # Current password is correct
                 user_data = r.json()
                 current_hash = user_data['password']
                 current_salt = user_data['password_salt']
@@ -327,7 +302,6 @@ def change_password():
                     flash(message, 'warning')
                     return render_template('change_password.html')
                 
-                # Save current password to history before changing
                 password_manager.save_password_to_history(username, current_hash, current_salt)
                 
                 # Hash new password
@@ -348,7 +322,6 @@ def change_password():
                     print(f"{Colors.RED}[FLASK ERROR] Failed to change password for user '{username}'{Colors.RESET}")
                     flash('Failed to change password.', 'error')
             else:
-                # Current password is incorrect
                 print(f"{Colors.YELLOW}[FLASK WARNING] Incorrect current password for user '{username}'{Colors.RESET}")
                 flash('Current password is incorrect.', 'error')
         except Exception as e:
@@ -372,13 +345,11 @@ def system():
         address = sanitize_input(request.form['address'])
         package_type = sanitize_input(request.form['package_type'])
         
-        # Validate all required fields are provided
         if not all([name, email, address, package_type]):
             flash('All fields are required', 'error')
             return render_template('system.html')
         
         try:
-            # Send customer data to backend for storage
             r = requests.post(f'{BACKEND_URL}/add-customer', json={
                 'name': name,
                 'email': email,
@@ -397,7 +368,7 @@ def system():
             flash('Could not connect to backend.', 'error')
 
     elif request.method == 'GET':
-        # Handle customer search and list operations
+        
         action = request.args.get('action')
         if action == 'search':
             # Search for customers by name

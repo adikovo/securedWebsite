@@ -47,8 +47,7 @@ db.connect((err) => {
     console.log(`${colors.green}Connected to MySQL database${colors.reset}`);
 });
 
-// User Registration Route
-// Handles new user registration with hashed passwords and salts
+//User Registration Route
 app.post('/register', (req, res) => {
     const { username, password, email, password_salt } = req.body;
 
@@ -79,7 +78,6 @@ app.post('/register', (req, res) => {
 });
 
 // User Login Route
-// Retrieves user credentials for Flask to verify
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
 
@@ -97,13 +95,11 @@ app.post('/login', (req, res) => {
         }
 
         console.log(`${colors.green}[LOGIN SUCCESS] User '${username}' login data retrieved${colors.reset}`);
-        // Return user data to Flask for password verification
         res.json(results[0]);
     });
 });
 
 // Customer Management Route
-// Adds new customers to the business system
 app.post('/add-customer', (req, res) => {
     const { name, email, address, package_type } = req.body;
 
@@ -120,12 +116,11 @@ app.post('/add-customer', (req, res) => {
     });
 });
 
-// Password Change Route
-// Updates user password with new hash and salt
+//Password Change Route
 app.post('/change-password', (req, res) => {
     const { username, password, password_salt } = req.body;
 
-    // Update password and salt in database
+    //update password and salt in database
     const query = 'UPDATE users SET password = ?, password_salt = ? WHERE username = ?';
     db.query(query, [password, password_salt, username], (err, results) => {
         if (err) {
@@ -144,11 +139,10 @@ app.post('/change-password', (req, res) => {
 });
 
 // Password Verification Route
-// Retrieves stored password data for Flask to verify current password
 app.post('/verify-password', (req, res) => {
     const { username } = req.body;
 
-    // Get password hash and salt for verification
+    //get password hash and salt for verification
     const query = 'SELECT password, password_salt FROM users WHERE username = ?';
     db.query(query, [username], (err, results) => {
         if (err) {
@@ -162,16 +156,14 @@ app.post('/verify-password', (req, res) => {
         }
 
         console.log(`${colors.green}[VERIFY PASSWORD SUCCESS] Password data retrieved for user '${username}'${colors.reset}`);
-        res.json(results[0]);  // Flask will verify the password with password_manager
+        res.json(results[0]);
     });
 });
 
 // Get User Password by ID Route
-// Retrieves password data by user ID (used for password reset)
 app.post('/get-user-password', (req, res) => {
     const { user_id } = req.body;
 
-    // Query password data by user ID
     const query = 'SELECT password, password_salt FROM users WHERE id = ?';
     db.query(query, [user_id], (err, results) => {
         if (err) {
@@ -189,11 +181,9 @@ app.post('/get-user-password', (req, res) => {
     });
 });
 
-// Import crypto module for secure token generation
 const crypto = require('crypto');
 
 // Password Reset Token Generation Route
-// Creates secure reset tokens for password recovery
 app.post('/generate-reset-token', (req, res) => {
     const { email } = req.body;
 
@@ -201,7 +191,6 @@ app.post('/generate-reset-token', (req, res) => {
         return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Find user by email address
     const findUserQuery = 'SELECT id FROM users WHERE email = ?';
     db.query(findUserQuery, [email], (err, results) => {
         if (err) {
@@ -217,9 +206,8 @@ app.post('/generate-reset-token', (req, res) => {
         const user_id = results[0].id;
         // Generate random value using SHA-1 
         const token = crypto.createHash('sha1').update(crypto.randomBytes(64)).digest('hex');
-        const expires_at = new Date(Date.now() + 60 * 60 * 1000); // One hour ahead
+        const expires_at = new Date(Date.now() + 60 * 60 * 1000);
 
-        // Store reset token in database
         const insertTokenQuery = `
             INSERT INTO password_reset_tokens (user_id, token, expires_at)
             VALUES (?, ?, ?)
@@ -238,11 +226,9 @@ app.post('/generate-reset-token', (req, res) => {
 });
 
 // Password Reset Route
-// Updates user password using valid reset token
 app.post('/reset-password', (req, res) => {
     const { user_id, password, password_salt } = req.body;
 
-    // Update password for specified user
     const query = 'UPDATE users SET password = ?, password_salt = ? WHERE id = ?';
     db.query(query, [password, password_salt, user_id], (err, results) => {
         if (err) {
@@ -265,12 +251,10 @@ app.listen(port, () => {
     console.log(`${colors.green}Server running at http://localhost:${port}${colors.reset}`);
 });
 
-// Password History Management Route
-// Saves password history for security policy enforcement
+//password History Management Route
 app.post('/add-password-history', (req, res) => {
     const { user_id, password_hash, password_salt } = req.body;
 
-    // Validate required fields
     if (!user_id || !password_hash || !password_salt) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -292,7 +276,6 @@ app.post('/add-password-history', (req, res) => {
 });
 
 // Customer Search Route
-// Searches for customers by exact name match
 app.get('/search-customer', (req, res) => {
     const { name } = req.query;
     const query = 'SELECT * FROM customers WHERE name = ?';
@@ -303,7 +286,6 @@ app.get('/search-customer', (req, res) => {
 });
 
 // Customer List Route
-// Retrieves all customers from database
 app.get('/list-customers', (req, res) => {
     db.query('SELECT * FROM customers', (err, results) => {
         if (err) return res.status(500).json({ error: 'DB error' });
