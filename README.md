@@ -1,6 +1,6 @@
 # Communication_LTD Secured Information System
 
-A comprehensive secured web application for Communication_LTD telecommunications company featuring advanced security measures, password management, and customer data handling.
+A secured web app for managing users and customer data for a telecom company, featuring password policy enforcement, login tracking, reset via email, and protection from XSS & SQLi.
 
 ## Architecture Overview
 
@@ -8,15 +8,6 @@ A comprehensive secured web application for Communication_LTD telecommunications
 - **Backend**: Node.js/Express API server for database operations
 - **Database**: MySQL with security features and audit trails
 - **Security**: PBKDF2 password hashing, login attempt tracking, password history, email-based password reset
-
-## Prerequisites
-
-Before setting up the system, ensure you have the following installed:
-
-- **Python 3.8+** with pip
-- **Node.js 14+** with npm
-- **MySQL 8.0+** or MariaDB 10.3+
-- **Git** for cloning the repository
 
 ## Complete Setup Instructions
 
@@ -28,31 +19,13 @@ cd securedWebsite
 
 ### 2. Database Setup
 
-#### Create Database and User
-```sql
--- Connect to MySQL as root
-mysql -u root -p
-
--- Create database
-CREATE DATABASE communication_ltd_secure;
-
--- Create dedicated user for the application
-CREATE USER 'comm_user'@'localhost' IDENTIFIED BY 'SecurePass123!';
-GRANT ALL PRIVILEGES ON communication_ltd_secure.* TO 'comm_user'@'localhost';
-FLUSH PRIVILEGES;
-
--- Use the new database
-USE communication_ltd_secure;
-```
-
-#### Initialize Database Schema
-```bash
-# Run the complete database setup
-mysql -u comm_user -p communication_ltd_secure < secure_database.sql
-
-# OR if migrating from existing database
-mysql -u comm_user -p communication_ltd_secure < migrate_database.sql
-```
+#### Setting Up the MySQL Database  
+1.To run the system locally, you need a MySQL database. Follow these steps:  
+2.Make sure MySQL is installed on your machine.  
+3.Open your preferred MySQL client (e.g., MySQL Workbench, phpMyAdmin, or DBeaver).   
+4.Create a new database named communication_ltd_secure (or any name you prefer).  
+5.Import the provided secure_database.sql file into the database.  
+6.Edit the .env file in the project root and update the database credentials to match your local MySQL setup.  
 
 ### 3. Environment Configuration
 
@@ -131,29 +104,7 @@ pip install flask requests mysql-connector-python python-dotenv
 python app.py
 ```
 **Frontend runs on**: `http://localhost:5001`
-
-### 6. Password Policy Configuration
-
-Edit `config.json` to customize security settings:
-```json
-{
-    "password_policy": {
-        "min_length": 10,
-        "require_uppercase": true,
-        "require_lowercase": true,
-        "require_digits": true,
-        "require_special_chars": true,
-        "password_history_size": 3,
-        "max_login_attempts": 3,
-        "login_lockout_duration_minutes": 15,
-        "whitelist": [
-            "SecurePass123!",
-            "StrongP@ssw0rd",
-            "ComplexP@ss123"
-        ]
-    }
-}
-```
+`
 
 ## System Features
 
@@ -246,85 +197,3 @@ python app.py
 - Request password reset via email
 - Verify token expiration (1 hour)
 - Test token reuse prevention
-
-## Troubleshooting
-
-### Common Issues
-
-#### Database Connection Errors
-```bash
-# Check MySQL service
-sudo systemctl status mysql
-
-# Test connection
-mysql -u comm_user -p communication_ltd_secure
-```
-
-#### Backend Connection Issues
-```bash
-# Check if backend is running
-curl http://localhost:3000/health
-
-# Check Node.js logs
-npm start
-```
-
-#### Email Configuration Issues
-- Verify Gmail App Password is correct
-- Check firewall settings for SMTP (port 587)
-- Test email configuration with simple send
-
-#### Frontend Issues
-```bash
-# Check Flask logs
-python app.py
-
-# Verify backend connectivity
-curl http://localhost:3000
-```
-
-## Development Notes
-
-### File Structure
-```
-securedWebsite/
-├── app.py                 # Flask frontend application
-├── server.js              # Node.js backend server
-├── password_utils.py      # Password security utilities
-├── config.json           # Security policy configuration
-├── secure_database.sql   # Complete database schema
-├── migrate_database.sql  # Migration script
-├── templates/            # HTML templates
-├── static/              # CSS and static files
-├── .env                 # Environment variables
-└── README.md           # This file
-```
-
-### Security Considerations
-- Change default passwords in production
-- Use HTTPS in production environment
-- Regularly update dependencies
-- Monitor security logs
-- Implement additional rate limiting at network level
-- Consider implementing CAPTCHA for repeated failures
-
-## Production Deployment
-
-### Additional Security Measures
-- Use reverse proxy (nginx/Apache)
-- Implement SSL/TLS certificates
-- Set up database replication
-- Configure log rotation
-- Implement backup strategies
-- Use environment-specific configurations
-- Set up monitoring and alerting
-
-### Performance Optimization
-- Database indexing on frequently queried columns
-- Connection pooling for database
-- Caching for static content
-- Load balancing for multiple instances
-
-## Support
-
-For technical support or questions about the Communication_LTD Secured Information System, please refer to the system documentation or contact the development team.
