@@ -78,9 +78,9 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        # Get form data and sanitize inputs
-        username = sanitize_input(request.form['username'])
-        email = sanitize_input(request.form['email'])
+        
+        username = request.form['username']
+        email = request.form['email']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
@@ -89,11 +89,13 @@ def register():
             flash('Passwords do not match. Please try again.', 'error')
             return render_template('register.html')
 
-        # Basic input validation
-        is_valid, result = validate_input(username, password)
+        # Basic input validation and sanitization
+        is_valid, result = validate_input(username, password, email)
         if not is_valid:
             flash(result, 'error')
             return render_template('register.html')
+
+        username, password, email = result
 
         # Generate secure password hash with salt using PBKDF2
         password_hash, password_salt = password_manager.hash_password(password)
@@ -127,10 +129,10 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = sanitize_input(request.form['username'])
+        username = request.form['username']
         password = request.form['password']
         
-        # Validate input data
+        # Validate input data and sanitize
         is_valid, result = validate_input(username, password)
         if not is_valid:
             flash(result, 'error')
@@ -221,8 +223,6 @@ def reset_password(token):
     if request.method == 'POST':
         new_password = request.form['new_password']
         confirm_password = request.form['confirm_password']
-        new_password = sanitize_input(new_password)
-        confirm_password = sanitize_input(confirm_password)
         
         # Check if passwords match
         if new_password != confirm_password:
@@ -299,7 +299,7 @@ def change_password():
             flash(result, 'error')
             return render_template('change_password.html')
         
-        current_password, new_password = result[1], sanitize_input(new_password)
+        current_password = result[1]
         
         # Validate new password against policy
         is_valid, message = password_manager.policy.validate_password(new_password)
