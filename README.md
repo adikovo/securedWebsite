@@ -5,6 +5,7 @@ A secured web app for managing users and customer data for a telecom company, fe
 ID: 206447708
     205851611
     318734308
+    
 ## Architecture Overview
 
 - **Frontend**: Flask (Python) web application with secure templates
@@ -200,15 +201,3 @@ python app.py
 - Request password reset via email
 - Verify token expiration (1 hour)
 - Test token reuse prevention
-
-
-1. stored XSS - system page: customer name input:  
-   Name: <script>alert('XSS Attack')</script> 
-   Email: test@test.com 
-   Address: Holon Package Type: Text 
-2. SQLI - register page: username input: 
-   username: ‘admin 
-3. SQLI - login page username input:  
-   username:  ' OR '1'='1 -- ' OR 1=1 LIMIT 5; -- 
-4. SQLI - system page search input:  
-   name: ' UNION SELECT id, username, email, email, 'user' FROM users --
