@@ -97,6 +97,12 @@ def register():
 
         username, password, email = result
 
+    
+        is_valid, message = password_manager.policy.validate_password(password)
+        if not is_valid:
+            flash(message, 'error')
+            return render_template('register.html')
+
         # Generate secure password hash with salt using PBKDF2
         password_hash, password_salt = password_manager.hash_password(password)
 
@@ -185,6 +191,9 @@ def login():
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
+        
+        password_manager.cleanup_expired_tokens()
+        
         email = request.form['email']
         email = sanitize_input(email)
 

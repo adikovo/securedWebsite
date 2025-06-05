@@ -40,8 +40,9 @@ class PasswordPolicy:
         if self.policy['require_special_chars'] and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
             return False, "Password must contain at least one special character"
 
-        if password in self.policy['whitelist']:
-            return True, "Password is valid"
+        # Check against blacklist of common weak passwords
+        if 'password_blacklist' in self.policy and password in self.policy['password_blacklist']:
+            return False, "This password is too common and predictable. Please choose a more unique password."
 
         return True, "Password is valid"
 
@@ -284,11 +285,47 @@ class PasswordManager:
             
             result = cursor.fetchone()
             if result:
-                return result[0]
+                user_id = result[0]
+                
+                # Delete the token immediately after verification (one-time use)
+                cursor.execute("""
+                    DELETE FROM password_reset_tokens 
+                    WHERE token = %s
+                """, (token,))
+                conn.commit()
+                
+                print(f"Reset token used and deleted for user ID: {user_id}")
+                return user_id
             return None
         except Error as e:
             print(f"Error verifying reset token: {e}")
             return None
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
+    def cleanup_expired_tokens(self):
+        
+        conn = self._get_db_connection()
+        if not conn:
+            return False
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                DELETE FROM password_reset_tokens 
+                WHERE expires_at <= NOW()
+            """)
+            deleted_count = cursor.rowcount
+            conn.commit()
+            
+            if deleted_count > 0:
+                print(f"Cleaned up {deleted_count} expired reset tokens")
+            return True
+        except Error as e:
+            print(f"Error cleaning up expired tokens: {e}")
+            return False
         finally:
             if conn.is_connected():
                 cursor.close()
